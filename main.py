@@ -1,12 +1,126 @@
 import inspect
 import re
 
+from matplotlib import pyplot as plt
+
 import flights_data
 from datetime import datetime
 import sqlalchemy
 import pandas as pd
 
 IATA_LENGTH = 3
+
+
+def plot_percentage_of_delayed_flight_per_airline():
+    """
+    Calculates and plots the percentage of delayed flights per airline.
+
+    For each airline retrieved from the database, the function:
+    - Counts all flights.
+    - Counts flights delayed by 20 minutes or more.
+    - Calculates the delay percentage.
+    - Generates a horizontal bar chart showing delay percentages per airline.
+
+    The resulting chart is saved as a PNG file.
+    """
+    airlines = flights_data.get_all_airlines()
+    label_list = []
+    percentage_list = []
+
+    for airline in airlines:
+        all_flights = flights_data.get_all_flights_by_airline(airline)
+        delayed_flights = flights_data.get_delayed_flights_by_airline(airline)
+
+        total = len(all_flights)
+        delayed = len(delayed_flights)
+
+        if total == 0:
+            continue  # Avoid division by zero
+
+        percent = (delayed / total) * 100
+        label_list.append(airline)
+        percentage_list.append(percent)
+
+    save_bar_chart(
+        labels=label_list,
+        values=percentage_list,
+        title="Percentage of Delayed Flights per Airline",
+        xlabel="Delay (%)",
+    )
+
+
+def save_bar_chart(labels: list[str], values: list[float], title: str, xlabel: str):
+    """
+    Generates and saves a horizontal bar chart.
+
+    Parameters
+    ----------
+    labels : list of str
+        The labels for the y-axis (e.g., airline names).
+    values : list of float
+        The values corresponding to each label (e.g., delay percentages).
+    title : str
+        The title of the chart.
+    xlabel : str
+        The label for the x-axis.
+
+    Returns
+    -------
+    None
+        Saves the chart as a PNG file using the filename provided via input().
+    """
+    file_name = input("Please name your output file (e.g. delays.png): ")
+    if not file_name.endswith(".png"):
+        file_name += ".png"
+
+    plt.figure(figsize=(10, 6))
+    plt.barh(labels, values, color="skyblue")
+    plt.xlabel(xlabel)
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(file_name)
+    print(f"Chart saved as {file_name}")
+
+
+def get_delay_histogram(results: list[dict]):
+    """
+    Erstellt ein horizontales Balkendiagramm mit den Delays aus dem Ergebnisobjekt
+    und speichert es als PNG.
+
+    :param results: Liste von SQLAlchemy-Ergebnissen (mapping-konvertierbar).
+    :return: None (aber speichert eine PNG-Datei).
+    """
+    file_name = input("Please name your histogram (e.g.: delays.png): ")
+    if not file_name.endswith(".png"):
+        file_name += ".png"
+
+    # Dictionaries vorbereiten
+    label_list = []
+    delay_list = []
+
+    for result in results:
+        r = result._mapping
+        try:
+            delay = int(r["DELAY"]) if r["DELAY"] else 0
+            airline_or_airport = (
+                r.get("AIRLINE") or r.get("ORIGIN_AIRPORT") or "Unknown"
+            )
+            label_list.append(airline_or_airport)
+            delay_list.append(delay)
+        except Exception as e:
+            print(f"Fehler beim Lesen eines Eintrags: {e}")
+            continue
+
+    # Plot erzeugen
+    plt.figure(figsize=(10, 6))
+    plt.barh(label_list, delay_list)
+    plt.xlabel("Delay (min)")
+    plt.ylabel("Airline / Airport")
+    plt.title("Flight Delays Histogram")
+
+    plt.tight_layout()
+    plt.savefig(file_name)
+    print(f'Histogram saved as "{file_name}"', "green")
 
 
 def confirm_csv_export_with_filename(default_filename: str) -> str | None:
@@ -216,7 +330,11 @@ FUNCTIONS = {
     2: (flights_by_date, "Show flights by date"),
     3: (delayed_flights_by_airline, "Delayed flights by airline"),
     4: (delayed_flights_by_airport, "Delayed flights by origin airport"),
-    5: (quit, "Exit"),
+    5: (
+        plot_percentage_of_delayed_flight_per_airline,
+        "Plots the percentage of delayed flights per airline in an bar diagram",
+    ),
+    6: (quit, "Exit"),
 }
 
 

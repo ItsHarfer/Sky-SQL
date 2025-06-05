@@ -4,6 +4,13 @@ QUERY_FLIGHT_BY_ID = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_I
 QUERY_FLIGHTS_BY_DATE = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE DAY = :day AND MONTH = :month AND YEAR = :year"
 QUERY_FLIGHTS_BY_AIRLINE = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE airlines.airline = :airline AND (flights.DEPARTURE_DELAY IS NOT NULL AND flights.DEPARTURE_DELAY != '' AND flights.DEPARTURE_DELAY >= 20);"
 QUERY_FLIGHTS_BY_AIRPORT = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id JOIN airports ON flights.ORIGIN_AIRPORT = airports.IATA_CODE WHERE airports.IATA_CODE = :airport AND (flights.DEPARTURE_DELAY IS NOT NULL AND flights.DEPARTURE_DELAY != '' AND flights.DEPARTURE_DELAY >= 20);"
+QUERY_ALL_FLIGHTS_BY_AIRLINE = """
+SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY 
+FROM flights 
+JOIN airlines ON flights.airline = airlines.id
+WHERE airlines.airline = :airline;
+"""
+QUERY_ALL_AIRLINES = "SELECT DISTINCT airline FROM airlines ORDER BY airline;"
 
 # Define the database URL
 DATABASE_URL = "sqlite:///data/flights.sqlite3"
@@ -27,6 +34,20 @@ def execute_query(query, params):
     except Exception as e:
         print("Query error:", e)
         return []
+
+
+def get_all_airlines():
+    """
+    Retrieves a list of all available airline names from the database.
+    :return: A list of airline names (as strings).
+    """
+    rows = execute_query(QUERY_ALL_AIRLINES, {})
+    return [row[0] for row in rows]
+
+
+def get_all_flights_by_airline(airline_input: str):
+    params = {"airline": airline_input}
+    return execute_query(QUERY_ALL_FLIGHTS_BY_AIRLINE, params)
 
 
 def get_flight_by_id(flight_id):
