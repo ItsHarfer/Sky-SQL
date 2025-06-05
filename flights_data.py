@@ -2,7 +2,8 @@ from sqlalchemy import create_engine, text
 
 QUERY_FLIGHT_BY_ID = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE flights.ID = :id"
 QUERY_FLIGHTS_BY_DATE = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE DAY = :day AND MONTH = :month AND YEAR = :year"
-
+QUERY_FLIGHTS_BY_AIRLINE = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE airlines.airline = :airline AND (flights.DEPARTURE_DELAY IS NOT NULL AND flights.DEPARTURE_DELAY != '' AND flights.DEPARTURE_DELAY >= 20);"
+QUERY_FLIGHTS_BY_AIRPORT = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id JOIN airports ON flights.ORIGIN_AIRPORT = airports.IATA_CODE WHERE airports.IATA_CODE = :airport AND (flights.DEPARTURE_DELAY IS NOT NULL AND flights.DEPARTURE_DELAY != '' AND flights.DEPARTURE_DELAY >= 20);"
 
 # Define the database URL
 DATABASE_URL = "sqlite:///data/flights.sqlite3"
@@ -49,3 +50,26 @@ def get_flights_by_date(day: int, month: int, year: int):
     """
     params = {"day": day, "month": month, "year": year}
     return execute_query(QUERY_FLIGHTS_BY_DATE, params)
+
+
+def get_delayed_flights_by_airline(airline_input: str):
+    """
+    Retrieves all delayed flights (with a delay of 20 minutes or more) for a specific airline.
+
+    :param airline_input: The airline name or code used to filter the flights.
+    :return: A list of flight records matching the airline and delay criteria.
+    """
+    params = {"airline": airline_input}
+    return execute_query(QUERY_FLIGHTS_BY_AIRLINE, params)
+
+
+def get_delayed_flights_by_airport(airport_input: str):
+    """
+    Retrieves all flights with a departure delay of 20 minutes or more
+    originating from the specified airport.
+
+    :param airport_input: The IATA code of the airport used to filter delayed flights (e.g., "JFK").
+    :return: A list of delayed flight records from the given airport.
+    """
+    params = {"airport": airport_input}
+    return execute_query(QUERY_FLIGHTS_BY_AIRPORT, params)
