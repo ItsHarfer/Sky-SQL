@@ -1,8 +1,39 @@
-import inspect
+"""
+main.py
+
+This script serves as the command-line interface for exploring and analyzing flight delay data
+stored in a SQLite database. It allows users to query flights by various parameters (ID, date,
+airline, airport), generate visualizations, and export results to CSV or PNG.
+
+Features:
+- Look up a specific flight by ID
+- View all flights scheduled on a given date
+- List delayed flights by airline or airport
+- Plot delay percentage per airline as a horizontal bar chart
+- Export query results to CSV interactively
+- Display individual delay histograms
+- Menu-driven navigation and input validation
+
+Modules used:
+- matplotlib.pyplot for plotting
+- pandas for CSV export
+- SQLAlchemy for database querying
+- re for label sanitization
+- datetime for date parsing
+
+Edge Cases Handled:
+- Invalid user input (non-numeric ID, incorrect date format, wrong IATA codes)
+- Empty result sets from queries
+- Missing or NULL delay values
+- Unsafe filenames are sanitized automatically before export
+
+Note:
+All delay percentages assume a threshold of ≥ 20 minutes.
+The script must be executed with access to the SQLite database under /data/flights.sqlite3.
+"""
+
 import re
-
 from matplotlib import pyplot as plt
-
 import flights_data
 from datetime import datetime
 import sqlalchemy
@@ -13,15 +44,10 @@ IATA_LENGTH = 3
 
 def plot_percentage_of_delayed_flight_per_airline():
     """
-    Calculates and plots the percentage of delayed flights per airline.
+    Calculates the percentage of delayed flights (≥ 20 minutes) per airline and plots the results
+    as a horizontal bar chart.
 
-    For each airline retrieved from the database, the function:
-    - Counts all flights.
-    - Counts flights delayed by 20 minutes or more.
-    - Calculates the delay percentage.
-    - Generates a horizontal bar chart showing delay percentages per airline.
-
-    The resulting chart is saved as a PNG file.
+    :return: None. The chart is saved as a PNG file using a filename provided by the user.
     """
     airlines = flights_data.get_all_airlines()
     label_list = []
@@ -51,23 +77,14 @@ def plot_percentage_of_delayed_flight_per_airline():
 
 def save_bar_chart(labels: list[str], values: list[float], title: str, xlabel: str):
     """
-    Generates and saves a horizontal bar chart.
+    Generates and saves a horizontal bar chart using the provided data and labels.
 
-    Parameters
-    ----------
-    labels : list of str
-        The labels for the y-axis (e.g., airline names).
-    values : list of float
-        The values corresponding to each label (e.g., delay percentages).
-    title : str
-        The title of the chart.
-    xlabel : str
-        The label for the x-axis.
+    :param labels: List of y-axis labels (e.g., airline names).
+    :param values: Corresponding x-axis values (e.g., delay percentages).
+    :param title: Title of the chart.
+    :param xlabel: Label for the x-axis.
 
-    Returns
-    -------
-    None
-        Saves the chart as a PNG file using the filename provided via input().
+    :return: None. Saves the chart as a PNG file using the filename provided via input().
     """
     file_name = input("Please name your output file (e.g. delays.png): ")
     if not file_name.endswith(".png"):
@@ -84,17 +101,17 @@ def save_bar_chart(labels: list[str], values: list[float], title: str, xlabel: s
 
 def get_delay_histogram(results: list[dict]):
     """
-    Erstellt ein horizontales Balkendiagramm mit den Delays aus dem Ergebnisobjekt
-    und speichert es als PNG.
+    Generates and saves a horizontal bar chart representing individual flight delays.
 
-    :param results: Liste von SQLAlchemy-Ergebnissen (mapping-konvertierbar).
-    :return: None (aber speichert eine PNG-Datei).
+    :param results: List of SQLAlchemy result objects (or dict-like rows) containing at least 'DELAY'
+                    and either 'AIRLINE' or 'ORIGIN_AIRPORT'.
+    :return: None. Saves the histogram as a PNG file based on user input.
     """
     file_name = input("Please name your histogram (e.g.: delays.png): ")
     if not file_name.endswith(".png"):
         file_name += ".png"
 
-    # Dictionaries vorbereiten
+    # Prepare lists for labels and delay values
     label_list = []
     delay_list = []
 
@@ -108,10 +125,10 @@ def get_delay_histogram(results: list[dict]):
             label_list.append(airline_or_airport)
             delay_list.append(delay)
         except Exception as e:
-            print(f"Fehler beim Lesen eines Eintrags: {e}")
+            print(f"Error reading entry: {e}")
             continue
 
-    # Plot erzeugen
+    # Generate plot
     plt.figure(figsize=(10, 6))
     plt.barh(label_list, delay_list)
     plt.xlabel("Delay (min)")
@@ -125,12 +142,10 @@ def get_delay_histogram(results: list[dict]):
 
 def confirm_csv_export_with_filename(default_filename: str) -> str | None:
     """
-    Asks the user whether to export results to CSV.
-    Offers a default filename, and lets them override it.
+    Asks the user whether they want to export data to a CSV file and lets them confirm or change the filename.
 
-    Returns:
-    - A string filename ending with '.csv', or
-    - None if the user cancels export.
+    :param default_filename: Suggested default filename (should end with '.csv').
+    :return: The confirmed or custom filename as a string, or None if the user declines export.
     """
     while True:
         choice = (
@@ -165,14 +180,14 @@ def save_to_csv(
     include_index: bool = False,
 ):
     """
-    Saves a DataFrame to a CSV file.
+    Saves the given data to a CSV file using pandas.
 
-    Parameters:
-    - data (pd.DataFrame): The DataFrame to save.
-    - filename (str): Name of the CSV file (e.g. 'output.csv').
-    - delimiter (str): The delimiter to use in the CSV file (default is comma).
-    - encoding (str): File encoding (default is 'utf-8').
-    - include_index (bool): Whether to write the DataFrame index (default is False).
+    :param data: A pandas DataFrame or a list of dictionaries to be saved.
+    :param filename: The target filename for the CSV (e.g. 'output.csv').
+    :param delimiter: Delimiter to use in the CSV file (default is comma).
+    :param encoding: File encoding (default is 'utf-8').
+    :param include_index: Whether to include the DataFrame index in the output (default is False).
+    :return: None. Prints confirmation or error message after saving.
     """
     try:
         panda_data = pd.DataFrame(data)
@@ -189,6 +204,11 @@ def save_to_csv(
 def export_results_to_csv(prompt: str, results, label: str):
     """
     Sanitizes the label, constructs the filename, asks the user for confirmation, and saves the file.
+
+    :param prompt: A prefix string used in the filename (e.g., 'delayed_flights_from_').
+    :param results: The data to be exported, typically a list of dicts or a DataFrame.
+    :param label: A label string (e.g., airline or airport name) that will be sanitized and included in the filename.
+    :return: None. Saves the results to a CSV file if the user confirms.
     """
     safe_label = re.sub(r"[^a-zA-Z0-9]", "_", label.strip().lower())
     filename = confirm_csv_export_with_filename(f"{prompt}{safe_label}.csv")
@@ -198,9 +218,10 @@ def export_results_to_csv(prompt: str, results, label: str):
 
 def delayed_flights_by_airline():
     """
-    Asks the user for a textual airline name (any string will work here).
-    Then runs the query using the data object method "get_delayed_flights_by_airline".
-    When results are back, calls "print_results" to show them to on the screen.
+    Prompts the user for an airline name, retrieves all delayed flights for that airline,
+    displays the results, and optionally exports them to a CSV file.
+
+    :return: None. Outputs the results to the console and saves them if confirmed by the user.
     """
     airline_input = input("Enter airline name: ")
     results = flights_data.get_delayed_flights_by_airline(airline_input)
@@ -211,14 +232,16 @@ def delayed_flights_by_airline():
 
 def delayed_flights_by_airport():
     """
-    Asks the user for a textual IATA 3-letter airport code (loops until input is valid).
-    Then runs the query using the data object method "get_delayed_flights_by_airport".
-    When results are back, calls "print_results" to show them to on the screen.
+    Prompts the user for a 3-letter IATA airport code, validates the input,
+    retrieves all delayed flights from that airport, displays the results,
+    and optionally exports them to a CSV file.
+
+    :return: None. Outputs results to the console and saves them if confirmed by the user.
     """
     valid = False
     while not valid:
         airport_input = input("Enter origin airport IATA code: ")
-        # Valide input
+        # Validate input
         if airport_input.isalpha() and len(airport_input) == IATA_LENGTH:
             valid = True
     results = flights_data.get_delayed_flights_by_airport(airport_input)
@@ -228,9 +251,11 @@ def delayed_flights_by_airport():
 
 def flight_by_id():
     """
-    Asks the user for a numeric flight ID,
-    Then runs the query using the data object method "get_flight_by_id".
-    When results are back, calls "print_results" to show them to on the screen.
+    Prompts the user for a numeric flight ID, validates the input,
+    retrieves the corresponding flight record, displays the result,
+    and optionally exports it to a CSV file.
+
+    :return: None. Outputs the result to the console and saves it if confirmed by the user.
     """
     id_input = ""
     valid = False
@@ -248,9 +273,11 @@ def flight_by_id():
 
 def flights_by_date():
     """
-    Asks the user for date input (and loops until it's valid),
-    Then runs the query using the data object method "get_flights_by_date".
-    When results are back, calls "print_results" to show them to on the screen.
+    Prompts the user for a date in DD/MM/YYYY format, validates and parses the input,
+    retrieves all flights scheduled for that date, displays the results,
+    and optionally exports them to a CSV file.
+
+    :return: None. Outputs the results to the console and saves them if confirmed by the user.
     """
     date_input = ""
     date = datetime.date
@@ -270,10 +297,13 @@ def flights_by_date():
 
 def print_results(results):
     """
-    Get a list of flight results (List of dictionary-like objects from SQLAachemy).
-    Even if there is one result, it should be provided in a list.
-    Each object *has* to contain the columns:
-    FLIGHT_ID, ORIGIN_AIRPORT, DESTINATION_AIRPORT, AIRLINE, and DELAY.
+    Prints a list of flight results with key flight information.
+
+    :param results: List of dictionary-like SQLAlchemy result objects.
+                    Each item must contain the keys:
+                    'FLIGHT_ID', 'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT', 'AIRLINE', and 'DELAY'.
+
+    :return: None. Outputs each flight's information to the console.
     """
     print(f"Got {len(results)} results.")
     for result in results:
@@ -284,7 +314,7 @@ def print_results(results):
         try:
             delay = (
                 int(result["DELAY"]) if result["DELAY"] else 0
-            )  # If delay columns is NULL, set it to 0
+            )  # If delay column is NULL, set it to 0
             origin = result["ORIGIN_AIRPORT"]
             dest = result["DESTINATION_AIRPORT"]
             airline = result["AIRLINE"]
@@ -303,9 +333,11 @@ def print_results(results):
 
 def show_menu_and_get_input():
     """
-    Show the menu and get user input.
-    If it's a valid option, return a pointer to the function to execute.
-    Otherwise, keep asking the user for input.
+    Displays the available menu options, prompts the user to select one,
+    and returns the corresponding function pointer.
+
+    :return: A callable function corresponding to the user's menu choice.
+             Keeps prompting until a valid numeric input is entered.
     """
     print("Menu:")
     for key, value in FUNCTIONS.items():
