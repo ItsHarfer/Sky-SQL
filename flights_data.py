@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, text
 
 QUERY_FLIGHT_BY_ID = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE flights.ID = :id"
+QUERY_FLIGHTS_BY_DATE = "SELECT flights.*, airlines.airline, flights.ID as FLIGHT_ID, flights.DEPARTURE_DELAY as DELAY FROM flights JOIN airlines ON flights.airline = airlines.id WHERE DAY = :day AND MONTH = :month AND YEAR = :year"
+
 
 # Define the database URL
 DATABASE_URL = "sqlite:///data/flights.sqlite3"
@@ -31,6 +33,19 @@ def get_flight_by_id(flight_id):
     Searches for flight details using flight ID.
     If the flight was found, returns a list with a single record.
     """
-    params = {'id': flight_id}
+    params = {"id": flight_id}
     return execute_query(QUERY_FLIGHT_BY_ID, params)
 
+
+def get_flights_by_date(day: int, month: int, year: int):
+    """
+    This function retrieves all flights scheduled for a specific date by querying the database
+    using the provided day, month, and year. It returns a list of matching flight records.
+
+    :param day: The day of the month (1–31) to filter flights.
+    :param month: The month of the year (1–12) to filter flights.
+    :param year: The four-digit year (e.g., 2015) to filter flights.
+    :return:
+    """
+    params = {"day": day, "month": month, "year": year}
+    return execute_query(QUERY_FLIGHTS_BY_DATE, params)
