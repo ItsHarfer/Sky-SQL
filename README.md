@@ -24,16 +24,19 @@ A Python-based application for querying historical flight delay data from a SQLi
 
 ---
 
+
 ## Project Structure
+
+```
 .
 ├── main.py                 # Example entry point for running and testing queries
 ├── flights_data.py         # Core module: query functions and SQL definitions
 ├── data/
 │   └── flights.sqlite3     # SQLite database (excluded from VCS if large)
 ├── LICENSE                 # Open source license
-└── README.md               # Project documentation (you’re reading it)
+├── README.md               # Project documentation (you’re reading it)
 └── requirements.txt        # Project requirements to install before run the app
-
+```
 ---
 
 ## Getting Started
